@@ -10,7 +10,7 @@ pub extern "C" fn set_city_name(c_city_name: *const c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn set_city_geometry(lat: f64, lng: f64) {
+pub extern "C" fn set_city_geometry(lat: f32, lng: f32) {
     println!("Latitude = <{}> Longtude = {}", lat, lng);
 }
 
