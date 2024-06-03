@@ -6,19 +6,17 @@ use std::os::raw::c_char;
 
 #[no_mangle]
 pub extern "C" fn get_city_temperature_by_name(c_city_name: *const c_char) -> f32 {
-    // for NULL-terminated C strings, it's a little bit clumsier
+    // for NULL-terminated C strings
     let city_name = unsafe { CStr::from_ptr(c_city_name).to_string_lossy().into_owned() };
 
     println!("city_name = <{:?}>", city_name);
 
-    // call get_weather_data(city_name) here
     //TBD: this is not acceptable as it will block the main thread to be check later
     let city: &str = city_name.as_str();
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     let mut temp: f32 = 0.0;
     rt.block_on(async {
-        //call get_weather_data_for_city() and print the returned temperature
         let result = get_weather_data_for_city(city).await;
         temp = result.unwrap();
     });
@@ -31,10 +29,8 @@ pub extern "C" fn get_city_temperature_by_geometry(lat: f32, lng: f32) -> f32 {
 
     //TBD: this is not acceptable as it will block the main thread to be check later
     let rt = tokio::runtime::Runtime::new().unwrap();
-
     let mut temp: f32 = 0.0;
     rt.block_on(async {
-        //call get_weather_data_for_geocode() and print the returned temperature
         let result = get_weather_data_for_geocode(lat, lng).await;
         temp = result.unwrap();
     });
@@ -43,14 +39,12 @@ pub extern "C" fn get_city_temperature_by_geometry(lat: f32, lng: f32) -> f32 {
 
 #[no_mangle]
 pub extern "C" fn is_city_name_valid(c_city_name: *const c_char) -> i32 {
-    // for NULL-terminated C strings, it's a little bit clumsier
+    // for NULL-terminated C strings
     let city_name = unsafe { CStr::from_ptr(c_city_name).to_string_lossy().into_owned() };
-
     let city: &str = city_name.as_str();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let mut ret = 0;
     rt.block_on(async {
-        //call get_geocode_from_cityname() to check if the city is valid
         let result = get_geocode_from_cityname(city).await;
         // check if the city is valid by checking the coordinates
         if result.is_err() {
@@ -69,33 +63,26 @@ pub extern "C" fn is_city_geometry_valid(lat: f32, lng: f32) -> i32 {
     for the southern and northern hemisphere, respectively.
     Longitude is in the range -180 and +180 specifying coordinates
     west and east of the Prime Meridian, respectively*/
-
     if lat < -90.0 || lat > 90.0 {
         println!("Invalid Latitude");
         return -2;
-    }
-
-    if lng < -180.0 || lng > 180.0 {
+    } else if lng < -180.0 || lng > 180.0 {
         println!("Invalid Longitude");
         return -3;
     }
-
     return 0;
 }
 
 async fn get_geocode_from_cityname(city: &str) -> Result<(f32, f32), Box<dyn std::error::Error>> {
-    let url = format!(
-        "https://geocode.maps.co/search?q={}&format=json&api_key=665ca3fbc910d600112365lrt1a225b",
-        city
-    );
-
+    
+    let api_key = "665ca3fbc910d600112365lrt1a225b";
+    let url = format!("https://geocode.maps.co/search?q={}&format=json&api_key={}", city, api_key);
     let response = reqwest::get(url).await?.text().await?;
 
     //check if response is empty or contains valid data and print the response
     match response.as_str() {
         "[]" => {
-            println!("Empty response: Not a valid City Name!");
-            //return invalid coordinates
+            println!("{} is Not a valid City Name!", city);
             return Err("Invalid City Name!".into());
         }
         _ => {
@@ -107,7 +94,7 @@ async fn get_geocode_from_cityname(city: &str) -> Result<(f32, f32), Box<dyn std
 
     // parsed json with (almost) all data you may need
     // for more info see open-meteo.com/en/docs
-    let _json: Value = serde_json::from_str(&response).expect("test .coordinates() instead".into());
+    let _json: Value = serde_json::from_str(&response).expect("Response is not a valid to convert geocode into city name!!");
 
     let (lat, lon) = (
         _json[0]["lat"].as_str().unwrap().parse::<f32>().unwrap(),
@@ -143,7 +130,7 @@ async fn get_weather_data_for_city(city: &str) -> Result<f32, Box<dyn std::error
 
     let temperature = data1.current_weather.unwrap().temperature;
 
-    println!("{}", temperature);
+    println!("Temperature in {} is {}°C",city, temperature);
 
     Ok(temperature)
 }
@@ -167,7 +154,7 @@ async fn get_weather_data_for_geocode(lat: f32, lon: f32) -> Result<f32, Box<dyn
 
     let temperature = data1.current_weather.unwrap().temperature;
 
-    println!("{}", temperature);
+    println!("Temperature in {}:{} is {}°C",lat, lon, temperature);
 
     Ok(temperature)
 }
