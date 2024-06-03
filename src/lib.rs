@@ -79,26 +79,28 @@ async fn get_geocode_from_cityname(city: &str) -> Result<(f32, f32), Box<dyn std
     let url = format!("https://geocode.maps.co/search?q={}&format=json&api_key={}", city, api_key);
     let response = reqwest::get(url).await?.text().await?;
 
-    //check if response is empty or contains valid data and print the response
+    //check if response is empty, this means that the city is not found
     match response.as_str() {
         "[]" => {
             println!("{} is Not a valid City Name!", city);
             return Err("Invalid City Name!".into());
         }
-        _ => {
-            println!("Valid City Name!");
-        }
+        _ => {}
     }
 
     println!("Response: {}", response);
 
+    // check if the response is a valid json, and ignore if it is not valid
+    let _: serde::de::IgnoredAny = serde_json::from_str(&response)?;
+
+    // We are sure at this point that the response is a valid json.
     // parsed json with (almost) all data you may need
     // for more info see open-meteo.com/en/docs
-    let _json: Value = serde_json::from_str(&response).expect("Response is not a valid to convert geocode into city name!!");
+    let parsed_json: Value = serde_json::from_str(&response)?;
 
     let (lat, lon) = (
-        _json[0]["lat"].as_str().unwrap().parse::<f32>().unwrap(),
-        _json[0]["lon"].as_str().unwrap().parse::<f32>().unwrap(),
+        parsed_json[0]["lat"].as_str().unwrap().parse::<f32>().unwrap(),
+        parsed_json[0]["lon"].as_str().unwrap().parse::<f32>().unwrap(),
     );
 
     Ok((lat, lon))
